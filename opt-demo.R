@@ -4,6 +4,7 @@ options(stringsAsFactors=FALSE)
 
 library(plyr)
 library(RCurl)
+library(lpSolve)
 
 url.fmt <- 'http://spreadsheets.google.com/pub?key=0AnaXKp9bt6OXdFBpR0xoVGpIaW9YN2g1R3EzV3RyNkE&hl=en&single=true&gid=%d&output=csv'
 
@@ -51,14 +52,46 @@ for (i in seq_len(nrow(dat$customer))) {
     U[i, j] <- subset(dat$customer_overall_prefs, 
 	  subset=customer_id==cust_id & weight_type=='farm')$pref_score[[1]] *
       subset(dat$customer_farm_prefs, subset=customer_id==cust_id & 
-	farm_id==inventory[[j, 'farm_id']])$pref_score[[1]]
-	# TODO: add the other components
+	farm_id==inventory[[j, 'farm_id']])$pref_score[[1]] +
+    subset(dat$customer_overall_prefs, 
+	  subset=customer_id==cust_id & weight_type=='cut')$pref_score[[1]] *
+      subset(dat$customer_cut_prefs, subset=customer_id==cust_id & 
+	cut_id==inventory[[j, 'cut_id']])$pref_score[[1]] +
+    subset(dat$customer_overall_prefs, 
+	  subset=customer_id==cust_id & weight_type=='price')$pref_score[[1]] *
+	max(0, min(4, (4-inventory[[j, 'price_per_pound']]/5)))
   }
 }
 
-# TODO: create the other constraints
+# create the other constraints
+# contraint matrix is length(U) columns, with each row
+# being a flattened matrix 
+# first set of ncol(U) rows: each product goes to one customer
+# second set of nrow(U) rows: each customer gets at least 75% of their portion
+#this is wrong: generate in matrix format first, then vectorize only at the end
+con <- rbind(laply(1:ncol(U), function(x) { 
+		ret <- matrix(0, nrow(U), ncol(U))
+		ret[, x] <- 1
+		as.vector(ret) }),
+	     laply(1:nrow(U), function(x) {
+		ret <- matrix(0, nrow(U), ncol(U))
+		ret[x, ] <- inventory$price_per_pound
+		as.vector(ret) }))
+con.dir <- c(rep('<=', ncol(U)), rep('>=', nrow(U)))
+con.rhs <- c(rep(1, ncol(U)), rep(.25*sum(with(inventory, price_per_pound*weight))/nrow(U), nrow(U)))
 
-# TODO: solve
+# solve
+sol <- lp('max', U, con, con.dir, con.rhs, all.bin=TRUE)
 
-# TODO: pretty-print solution
+# pretty-print solution
+#matrix(sol$solution, 5)
+
+for (cust in 1:nrow(dat$customer)) {
+	cat(dat$customer[[cust, 'customer_name']], ':\n')
+	items <- inventory[as.logical(matrix(sol$solution, nrow(U))[cust, ]), ]
+	items <- merge(merge(items, dat$cuts), dat$farms)
+	a_ply(items, 1, function(item) {
+				with(item, cat(cut_name, ' (', farm_name, '): ', weight, ' lbs @ $', price_per_pound, 
+											 '/lb = $', weight*price_per_pound, '\n', sep='')) })
+}
 
