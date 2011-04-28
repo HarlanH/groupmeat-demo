@@ -49,6 +49,9 @@ mat <- matrix(mat, nrow=num.bool.consts+num.cont.consts, byrow=TRUE)
 types <- c(rep('B', num.bool.consts), rep('C', num.cont.consts))
 max <- TRUE # maximizing utility
 
+# TODO: is there a way to use slack variables to minimize the equitability 
+# constraints as part of a single solution?
+
 # now, repeatedly solve the problem, with weaker and weaker contraints on
 # the equitability constraints, until we get something that works.
 backoff <- .8
@@ -78,6 +81,7 @@ cat(sprintf('Person #%d got Items %s worth %0.2f\n',
 cat(sprintf('\nTotal Value Assigned: %0.3f (minimum of %0.3f/person)\n',
       soln$objval, min.utility))
   
-cat('\nDetails (objective, assigned):\n')
+cat('\nObjective function table:\n')
 print(obj, digits=2)
+cat('\nAssigned value table:\n')
 print(obj*soln$solution, digits=2)
