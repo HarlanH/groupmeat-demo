@@ -63,14 +63,6 @@ mat <- c(mat, unlist(mlply(expand.grid(jj=1:num.pers, ul=c(1,0)), d.constraint, 
 dir <- c(dir, c(rep('<=', num.pers), rep('>=', num.pers)))
 rhs <- c(rhs, rep(0, num.pers*2))
 
-# #OLD
-# # for each person/col, find a solution that maximizes equality
-# # sum of each column is greater than a (meta-optimized) constant
-# mat <- c(mat, unlist(llply(1:num.pers, function(ii) { x <- mat.0; x[, ii] <- obj[,ii]; x})))
-# dir <- c(dir, rep('>=', num.pers))
-# min.utility <- 1 # start with a perfectly equitable solution and back off as needed
-# rhs.final <- c(rhs, rep(min.utility, num.pers))
-
 # munge back into matrix form; human sorta-readable
 mat <- matrix(mat, nrow=length(rhs), byrow=TRUE)
 
@@ -106,3 +98,9 @@ cat('\nObjective function table:\n')
 print(obj.pretty(obj), digits=2)
 cat('\nAssigned value table:\n')
 print(obj.pretty(obj*soln$solution), digits=2)
+
+#cleanup ideas:
+# store objective function matrices as a list of matrix + 2-tuple
+# functions to cleanly convert to and from vectors
+# functions to pretty-print
+# simple version without the parity to present first
